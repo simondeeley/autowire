@@ -1,0 +1,6 @@
+# ignore all files and folders in root and in its descendants except those whitelisted
+*
+!/src/**/
+!/tests/**/
+!Dockerfile
+!*.(json|yml|lock|md|xml|dockerignore|gitignore|editorconfig)
