@@ -3,4 +3,10 @@
 !/src/**/
 !/tests/**/
 !Dockerfile
-!*.(json|yml|lock|md|xml|dockerignore|gitignore|editorconfig)
+!*.json
+!*.xml
+!*.yml
+!*.yaml
+!.editorconfig
+!.dockerignore
+!.gitignore
