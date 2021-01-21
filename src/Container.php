@@ -28,7 +28,11 @@
 namespace Autowire;
 
 use ArrayAccess;
+use Countable;
+use ReflectionClass;
+use ReflectionException;
 use Psr\Container\ContainerInterface;
+use Autowire\Container\Exception\NotFoundException;
 
 /**
  * The Autowire container.
@@ -39,35 +43,129 @@ use Psr\Container\ContainerInterface;
  *
  * @author Simon Deeley
  */
-class Container implements ArrayAccess, ContainerInterface
+class Container implements ArrayAccess, Countable, ContainerInterface
 {
+    private array $items = [];
+    
     /**
-     * {@inheritDoc}
+     *
      */
-    public function get($id)
+    public function set(string $id, mixed $arg): self
     {
+        $this->items[$id] = $arg;
+        
+        return $this;
     }
     
     /**
      * {@inheritDoc}
      */
-    public function has($id)
+    public function get(mixed $id): mixed
     {
+        $item = $this->resolve($id);
+        
+        if (false === $item instanceof ReflectionClass) {
+            return $item;
+        }
+        
+        return $this->getInstance($item);
     }
     
-    public function offsetSet($offset, $value): void
+    /**
+     * {@inheritDoc}
+     */
+    public function has(mixed $id): bool
+    {
+        try {
+            $item = $this->resolve($id);
+            return $item->isInstantiable();
+        } catch (NotFoundException $e) {
+            return array_key_exists($id, $this->items);
+        }
+        
+        return false;
+    }
+    
+    /**
+     * {@inheritDoc}
+     */
+    public function offsetSet(mixed $offset, mixed $value): void
+    {
+        $this->set($offset, $value);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function offsetExists(mixed $offset): bool
+    {
+        return $this->has($offset);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function offsetUnset(mixed $offset): void
     {
     }
 
-    public function offsetExists($offset): bool
+    /**
+     * {@inheritDoc}
+     */
+    public function offsetGet(mixed $offset): mixed
     {
+        return $this->get($offset);
     }
-
-    public function offsetUnset($offset): void
+    
+    /**
+     * {@inheritdoc}
+     */
+    public function count(): int
     {
+        return count($this->items);
     }
-
-    public function offsetGet($offset): mixed
+    
+    /**
+     * Resolve an object (or one that can be instantiated) from the
+     * container by inspecting it through reflection.
+     */
+    private function resolve($id): object
     {
+        try {
+            $name = $id;
+            
+            if (isset($this->items[$id])) {
+                $name = $this->items[$id];
+                
+                if (is_callable($name)) {
+                    return $name();
+                }
+            }
+            
+            return (new ReflectionClass($name));
+        } catch (ReflectionException $e) {
+            throw new NotFoundException($e->getMessage(), $e->getCode(), $e);
+        }
+    }
+    
+    /**
+     *
+     */
+    private function getInstance(ReflectionClass $item): object
+    {
+        $constructor = $item->getConstructor();
+        
+        if (is_null($constructor) || $constructor->getNumberOfRequiredParameters() == 0) {
+            return $item->newInstance();
+        }
+        
+        $params = [];
+        foreach ($constructor->getParameters() as $param) {
+            if ($type = $param->getType()) {
+                $params[] = $this->get($type->getName());
+            }
+        }
+        
+        return $item->newInstanceArgs($params);
     }
 }
