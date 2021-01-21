@@ -1,8 +1,8 @@
 suites:
-      main:
-        namespace: Autowire
-        psr4_prefix: Autowire
-        src_path: src
-        spec_path: tests
+    main:
+      namespace: Autowire
+      psr4_prefix: Autowire
+      src_path: src
+      spec_path: tests
         
 formatter.name: pretty
